@@ -1,17 +1,6 @@
-import os
-
 from tortoise import Tortoise
 
-
-TORTOISE_ORM = {
-    "connections": {"default": os.environ["DB_URL"]},
-    "apps": {
-        "models": {
-            "models": ["src.models", "aerich.models"],
-            "default_connection": "default",
-        },
-    },
-}
+from src.app import TORTOISE_ORM
 
 
 async def init_db():

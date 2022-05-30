@@ -2,9 +2,8 @@ import argparse
 import asyncio
 import csv
 
-from src.models import ExchangePair, ExchangePairPrice
 from init_db import init_db
-
+from src.models import ExchangePair, ExchangePairPrice
 
 parser = argparse.ArgumentParser(description="Import exchange rates data.")
 parser.add_argument("csv_file_path", help="Path of the csv file to import")

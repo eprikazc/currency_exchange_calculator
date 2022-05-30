@@ -1,5 +1,6 @@
-from tortoise.models import Model
 from tortoise import fields
+from tortoise.contrib.pydantic import pydantic_model_creator
+from tortoise.models import Model
 
 
 class ExchangePair(Model):
@@ -7,6 +8,8 @@ class ExchangePair(Model):
     currency2 = fields.CharField(max_length=3)
 
     class Meta:
+        # TODO: add more sophisticated unique constraint
+        # to not allow "symmetrical" pairs (such as "USD<>EUR" and "EUR<>USD")
         unique_together = [("currency1", "currency2")]
 
     def __str__(self):
@@ -23,3 +26,9 @@ class ExchangePairPrice(Model):
 
     def __str__(self):
         return "%s: %s" % (self.exchange_pair, self.date)
+
+
+ExchangePair_Pydantic = pydantic_model_creator(ExchangePair, name="ExchangePair")
+ExchangePairIn_Pydantic = pydantic_model_creator(
+    ExchangePair, name="ExchangePairIn", include=["currency1", "currency2"]
+)
