@@ -1,11 +1,12 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, constr
 
 from src.common import Error
-from src.models import Currency, ExchangePairPrice
+from src.models import Currency, ExchangePairPrice, get_best_rate
 
 router = APIRouter()
 
@@ -30,6 +31,10 @@ class DatePrice(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class BestPrice(BaseModel):
+    price: Optional[Decimal]
 
 
 @router.post(
@@ -126,7 +131,24 @@ async def get_historical_prices(
         date__lte=end_date,
     ).order_by("date")
     return [DatePrice.from_orm(item) for item in price_records]
-    return await DatePrice.from_queryset(price_records)
+
+
+@router.get(
+    "/{sell_currency_code}/{buy_currency_code}/{date}",
+    status_code=status.HTTP_200_OK,
+    response_model=BestPrice,
+    responses={400: {"model": Error}},
+)
+async def get_rate(
+    sell_currency_code: currency_code,
+    buy_currency_code: currency_code,
+    date: date,
+):
+    # Validate currencies
+    await _get_currency_by_code(sell_currency_code)
+    await _get_currency_by_code(buy_currency_code)
+    best_rate = await get_best_rate(sell_currency_code, buy_currency_code, date)
+    return BestPrice(price=best_rate)
 
 
 def _get_start_end_dates(start=None, end=None):
