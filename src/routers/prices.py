@@ -59,7 +59,6 @@ async def create_price(price: PriceIn):
         raise HTTPException(
             status_code=400, detail="Price for symmetrical currencies already exists"
         )
-
     await ExchangePairPrice.create(
         date=price.date,
         sell_currency=sell_currency,

@@ -1,5 +1,5 @@
 from datetime import date
-from decimal import Decimal, getcontext
+from decimal import Decimal, localcontext
 from typing import Optional
 
 import igraph
@@ -8,7 +8,6 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.models import Model
 
 DECIMAL_PLACES = 4
-getcontext().prec = DECIMAL_PLACES
 
 
 class Currency(Model):
@@ -72,10 +71,12 @@ async def get_best_rate(
 
     prices = {}
     edges = []
-    for sell_curr, buy_curr, price in data:
-        prices[f"{sell_curr}>{buy_curr}"] = price
-        prices[f"{buy_curr}>{sell_curr}"] = 1 / price
-        edges.append((index_of_currency[sell_curr], index_of_currency[buy_curr]))
+    with localcontext() as ctx:
+        ctx.prec = DECIMAL_PLACES
+        for sell_curr, buy_curr, price in data:
+            prices[f"{sell_curr}>{buy_curr}"] = price
+            prices[f"{buy_curr}>{sell_curr}"] = 1 / price
+            edges.append((index_of_currency[sell_curr], index_of_currency[buy_curr]))
 
     g = igraph.Graph(len(nodes), edges)
     paths = g.get_shortest_paths(
