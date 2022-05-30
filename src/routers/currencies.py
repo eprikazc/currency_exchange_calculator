@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, HTTPException, status
 from tortoise.models import Q
 
@@ -14,7 +12,7 @@ from src.models import (
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Currency_Pydantic])
+@router.get("/", response_model=list[Currency_Pydantic])
 async def list_currency():
     return await Currency_Pydantic.from_queryset(Currency.all())
 

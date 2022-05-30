@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, status
@@ -22,6 +22,14 @@ class PriceIn(BaseModel):
 
 class PriceUpdate(BaseModel):
     value: Decimal
+
+
+class DatePrice(BaseModel):
+    date: date
+    price: Decimal
+
+    class Config:
+        orm_mode = True
 
 
 @router.post(
@@ -89,6 +97,52 @@ async def delete_price(
         date=date, sell_currency=sell_currency, buy_currency=buy_currency
     )
     price_record.delete()
+
+
+@router.get(
+    "/{sell_currency_code}/{buy_currency_code}",
+    status_code=status.HTTP_200_OK,
+    response_model=list[DatePrice],
+    responses={400: {"model": Error}},
+)
+async def get_historical_prices(
+    sell_currency_code: currency_code,
+    buy_currency_code: currency_code,
+    start_date: date = None,
+    end_date: date = None,
+):
+    start_date, end_date = _get_start_end_dates(start_date, end_date)
+    if (end_date - start_date).days > 180:
+        raise HTTPException(
+            status_code=400,
+            detail="Interval must be shorter than 180 days",
+        )
+    sell_currency = await _get_currency_by_code(sell_currency_code)
+    buy_currency = await _get_currency_by_code(buy_currency_code)
+    price_records = await ExchangePairPrice.filter(
+        sell_currency=sell_currency,
+        buy_currency=buy_currency,
+        date__gte=start_date,
+        date__lte=end_date,
+    ).order_by("date")
+    return [DatePrice.from_orm(item) for item in price_records]
+    return await DatePrice.from_queryset(price_records)
+
+
+def _get_start_end_dates(start=None, end=None):
+    if start is None and end is None:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=30)
+    elif start is not None and end is None:
+        start_date = start
+        end_date = start + timedelta(days=30)
+    elif start is None and end is not None:
+        end_date = end
+        start_date = end - timedelta(days=30)
+    else:
+        start_date = start
+        end_date = end
+    return start_date, end_date
 
 
 async def _get_currency_by_code(code: str):
