@@ -3,32 +3,41 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.models import Model
 
 
-class ExchangePair(Model):
-    currency1 = fields.CharField(max_length=3)
-    currency2 = fields.CharField(max_length=3)
-
-    class Meta:
-        # TODO: add more sophisticated unique constraint
-        # to not allow "symmetrical" pairs (such as "USD<>EUR" and "EUR<>USD")
-        unique_together = [("currency1", "currency2")]
+class Currency(Model):
+    code = fields.CharField(max_length=3, unique=True)
 
     def __str__(self):
-        return "%s <> %s" % (self.currency1, self.currency2)
+        return self.code
 
 
 class ExchangePairPrice(Model):
     date = fields.DateField()
-    exchange_pair = fields.ForeignKeyField("models.ExchangePair")
+    sell_currency = fields.ForeignKeyField(
+        "models.Currency", related_name="sell_price_set"
+    )
+    buy_currency = fields.ForeignKeyField(
+        "models.Currency", related_name="buy_price_set"
+    )
     price = fields.DecimalField(max_digits=8, decimal_places=4)
 
     class Meta:
-        unique_together = [("exchange_pair", "date")]
+        unique_together = [("date", "sell_currency", "buy_currency")]
 
     def __str__(self):
-        return "%s: %s" % (self.exchange_pair, self.date)
+        return "%s: %s/%s" % (self.date, self.sell_currency, self.buy_currency)
 
 
-ExchangePair_Pydantic = pydantic_model_creator(ExchangePair, name="ExchangePair")
-ExchangePairIn_Pydantic = pydantic_model_creator(
-    ExchangePair, name="ExchangePairIn", include=["currency1", "currency2"]
+Currency_Pydantic = pydantic_model_creator(
+    Currency, name="Currency", include=["id", "code"]
+)
+CurrencyIn_Pydantic = pydantic_model_creator(
+    Currency, name="CurrencyIn", include=["code"]
+)
+
+ExchangePairPrice_Pydantic = pydantic_model_creator(
+    ExchangePairPrice, name="ExchangePairPrice"
+)
+ExchangePairPriceIn_Pydantic = pydantic_model_creator(
+    ExchangePairPrice,
+    name="ExchangePairPriceIn",
 )

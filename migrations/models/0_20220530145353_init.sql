@@ -1,15 +1,15 @@
 -- upgrade --
-CREATE TABLE IF NOT EXISTS "exchangepair" (
+CREATE TABLE IF NOT EXISTS "currency" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "currency1" VARCHAR(3) NOT NULL,
-    "currency2" VARCHAR(3) NOT NULL,
-    CONSTRAINT "uid_exchangepai_currenc_9e764c" UNIQUE ("currency1", "currency2")
+    "code" VARCHAR(3) NOT NULL UNIQUE
 );
 CREATE TABLE IF NOT EXISTS "exchangepairprice" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "date" DATE NOT NULL,
     "price" DECIMAL(8,4) NOT NULL,
-    "exchange_pair_id" INT NOT NULL REFERENCES "exchangepair" ("id") ON DELETE CASCADE
+    "buy_currency_id" INT NOT NULL REFERENCES "currency" ("id") ON DELETE CASCADE,
+    "sell_currency_id" INT NOT NULL REFERENCES "currency" ("id") ON DELETE CASCADE,
+    CONSTRAINT "uid_exchangepai_date_8ff5f1" UNIQUE ("date", "sell_currency_id", "buy_currency_id")
 );
 CREATE TABLE IF NOT EXISTS "aerich" (
     "id" SERIAL NOT NULL PRIMARY KEY,
