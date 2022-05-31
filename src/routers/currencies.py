@@ -1,23 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from tortoise.models import Q
 
 from src.common import Error
 from src.deps import get_db
-from src.models_sqla import Currency as Currency_SA
-from src.models_tortoise import (
-    Currency,
-    Currency_Pydantic,
-    CurrencyIn_Pydantic,
-    ExchangePairPrice,
-)
-from src.schemas import Currency_Pydantic as Currency_Pydantic_SA
+from src.models_sqla import Currency, ExchangePairPrice
+from src.schemas import Currency_Pydantic, CurrencyIn_Pydantic
+
+from ._helpers import get_object_or_404
 
 router = APIRouter()
 
 
-@router.get("/", response_model=list[Currency_Pydantic_SA])
+@router.get("/", response_model=list[Currency_Pydantic])
 def list_currency(session=Depends(get_db)):
-    return session.query(Currency_SA).all()
+    return session.query(Currency).all()
 
 
 @router.post(
@@ -26,12 +21,15 @@ def list_currency(session=Depends(get_db)):
     responses={
         400: {"model": Error},
     },
+    status_code=status.HTTP_201_CREATED,
 )
-async def create_currency(currency: CurrencyIn_Pydantic):
-    if await Currency.filter(code=currency.code).exists():
+def create_currency(currency: CurrencyIn_Pydantic, session=Depends(get_db)):
+    if session.query(Currency).filter_by(code=currency.code).first():
         raise HTTPException(status_code=400, detail="This currency already exists")
-    currency_obj = await Currency.create(**currency.dict(exclude_unset=True))
-    return await Currency_Pydantic.from_tortoise_orm(currency_obj)
+    currency_obj = Currency(**currency.dict())
+    session.add(currency_obj)
+    session.commit()
+    return currency_obj
 
 
 @router.put(
@@ -39,9 +37,14 @@ async def create_currency(currency: CurrencyIn_Pydantic):
     response_model=Currency_Pydantic,
     responses={404: {"model": Error}},
 )
-async def update_currency(currency_id: int, currency: CurrencyIn_Pydantic):
-    await Currency.filter(id=currency_id).update(**currency.dict(exclude_unset=True))
-    return await Currency_Pydantic.from_queryset_single(Currency.get(id=currency_id))
+def update_currency(
+    currency_id: int, currency: CurrencyIn_Pydantic, session=Depends(get_db)
+):
+    currency_obj = get_object_or_404(session, Currency, currency_id)
+    for field, value in currency.dict(exclude_unset=True).items():
+        setattr(currency_obj, field, value)
+    session.commit()
+    return currency_obj
 
 
 @router.get(
@@ -49,8 +52,8 @@ async def update_currency(currency_id: int, currency: CurrencyIn_Pydantic):
     response_model=Currency_Pydantic,
     responses={404: {"model": Error}},
 )
-async def get_currency(currency_id: int):
-    return await Currency_Pydantic.from_queryset_single(Currency.get(id=currency_id))
+def get_currency(currency_id: int, session=Depends(get_db)):
+    return get_object_or_404(session, Currency, currency_id)
 
 
 @router.delete(
@@ -61,14 +64,21 @@ async def get_currency(currency_id: int):
         400: {"model": Error},
     },
 )
-async def delete_currency(currency_id: int):
-    currency = await Currency.get(id=currency_id)
-    has_prices = await ExchangePairPrice.filter(
-        Q(sell_currency=currency) | Q(buy_currency=currency)
-    ).exists()
+def delete_currency(currency_id: int, session=Depends(get_db)):
+    currency = get_object_or_404(session, Currency, currency_id)
+    has_prices = (
+        session.query(ExchangePairPrice)
+        .filter(
+            (ExchangePairPrice.sell_currency_id == currency_id)
+            | (ExchangePairPrice.buy_currency_id == currency_id)
+        )
+        .first()
+        is not None
+    )
     if has_prices:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot delete currency '{currency}' as it has price records",
         )
-    await currency.delete()
+    session.delete(currency)
+    session.commit()
