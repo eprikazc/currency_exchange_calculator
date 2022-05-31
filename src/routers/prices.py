@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, constr
 
 from src.common import Error
-from src.models import Currency, ExchangePairPrice, get_best_rate
+from src.models_tortoise import Currency, ExchangePairPrice, get_best_rate
 
 router = APIRouter()
 

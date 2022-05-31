@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from tortoise.models import Q
 
 from src.common import Error
-from src.models import (
+from src.models_tortoise import (
     Currency,
     Currency_Pydantic,
     CurrencyIn_Pydantic,
