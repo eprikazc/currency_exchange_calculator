@@ -1,20 +1,23 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from tortoise.models import Q
 
 from src.common import Error
+from src.deps import get_db
+from src.models_sqla import Currency as Currency_SA
 from src.models_tortoise import (
     Currency,
     Currency_Pydantic,
     CurrencyIn_Pydantic,
     ExchangePairPrice,
 )
+from src.schemas import Currency_Pydantic as Currency_Pydantic_SA
 
 router = APIRouter()
 
 
-@router.get("/", response_model=list[Currency_Pydantic])
-async def list_currency():
-    return await Currency_Pydantic.from_queryset(Currency.all())
+@router.get("/", response_model=list[Currency_Pydantic_SA])
+def list_currency(session=Depends(get_db)):
+    return session.query(Currency_SA).all()
 
 
 @router.post(

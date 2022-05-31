@@ -1,6 +1,10 @@
+SQLAlchemy==1.4.36
+SQLAlchemy-Utils==0.38.2
 aerich==0.6.3
 asyncpg==0.25.0
 fastapi==0.78.0
 igraph==0.9.10
+psycopg2==2.9.3
+pydantic-sqlalchemy==0.0.9
 tortoise-orm==0.19.1
 uvicorn==0.17.6
