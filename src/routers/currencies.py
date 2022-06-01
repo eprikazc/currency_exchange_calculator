@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.common import Error
+from src.crud_utils import create_currency
 from src.deps import get_db
 from src.models_sqla import Currency, ExchangePairPrice
 from src.schemas import Currency_Pydantic, CurrencyIn_Pydantic
@@ -23,13 +24,10 @@ def list_currency(session=Depends(get_db)):
     },
     status_code=status.HTTP_201_CREATED,
 )
-def create_currency(currency: CurrencyIn_Pydantic, session=Depends(get_db)):
+def add_currency(currency: CurrencyIn_Pydantic, session=Depends(get_db)):
     if session.query(Currency).filter_by(code=currency.code).first():
         raise HTTPException(status_code=400, detail="This currency already exists")
-    currency_obj = Currency(**currency.dict())
-    session.add(currency_obj)
-    session.commit()
-    return currency_obj
+    return create_currency(session, **currency.dict())
 
 
 @router.put(
