@@ -1,9 +1,9 @@
 import argparse
-import asyncio
 import csv
 
-from init_db import init_db
-from src.models_tortoise import Currency, ExchangePairPrice
+from src.crud_utils import create_currency
+from src.models_sqla import ExchangePairPrice
+from src.sqla_base import SessionLocal
 
 parser = argparse.ArgumentParser(description="Import exchange rates data.")
 parser.add_argument("csv_file_path", help="Path of the csv file to import")
@@ -12,27 +12,30 @@ parser.add_argument("csv_file_path", help="Path of the csv file to import")
 CurrencyIDs = dict[str, int]
 
 
-async def run_import(csv_file_path: str):
-    await init_db()
+def run_import(csv_file_path: str):
+    session = SessionLocal()
     with open(csv_file_path) as csvfile:
         reader = csv.DictReader(csvfile)
-        currency_ids = await _create_currencies(
-            set(_get_currencies_from_headers(reader.fieldnames))
+        currency_ids = _create_currencies(
+            session,
+            set(_get_currencies_from_headers(reader.fieldnames)),
         )
         for row in reader:
             for date, currency1, currency2, price in _get_prices_from_row(row):
-                await ExchangePairPrice.create(
+                price_obj = ExchangePairPrice(
                     date=date,
                     sell_currency_id=currency_ids[currency1],
                     buy_currency_id=currency_ids[currency2],
                     price=price,
                 )
+                session.add(price_obj)
+                session.commit()
 
 
-async def _create_currencies(currency_codes: set[str]) -> CurrencyIDs:
+def _create_currencies(session, currency_codes: set[str]) -> CurrencyIDs:
     currency_ids = {}
     for code in currency_codes:
-        currency = await Currency.create(code=code)
+        currency = create_currency(session, code=code)
         currency_ids[code] = currency.id
     return currency_ids
 
@@ -57,4 +60,4 @@ def _get_prices_from_row(row: dict[str, str]):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    asyncio.run(run_import(args.csv_file_path))
+    run_import(args.csv_file_path)
